@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>財富試算 ・ 複利計算器</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: "Microsoft JhengHei", system-ui, sans-serif; background: #0f1620; color: #e8edf4;
+      min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 28px 20px; }
+    .card { width: 100%; max-width: 560px; background: #1a2433; border: 1px solid #28344a;
+      border-radius: 18px; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+    h1 { font-size: 24px; font-weight: 800; letter-spacing: -.4px; }
+    .sub { color: #8b97a8; font-size: 13px; margin: 4px 0 20px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .seg { display: inline-flex; background: #0f1620; border: 1px solid #2c3a52; border-radius: 10px; padding: 3px; }
+    .seg button { border: none; background: transparent; color: #8b97a8; font-size: 14px; font-weight: 700; padding: 7px 20px; border-radius: 8px; cursor: pointer; transition: background .15s, color .15s; }
+    .seg button.on { background: #2f7ad6; color: #fff; }
+    .reset { border: 1px solid #2c3a52; background: transparent; color: #8b97a8; font-size: 13px; padding: 7px 14px; border-radius: 8px; cursor: pointer; transition: background .15s, color .15s; }
+    .reset:hover { color: #e8edf4; background: #233044; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+    .f label { display: block; font-size: 12.5px; color: #aeb9c9; margin-bottom: 5px; }
+    .f input { width: 100%; padding: 10px 12px; font-size: 15px; background: #0f1620; border: 1px solid #2c3a52; border-radius: 9px; color: #fff; outline: none; min-width: 0; }
+    .f input:focus { border-color: #2f7ad6; }
+    .hint { font-size: 11px; color: #6b7686; margin-top: 4px; min-height: 14px; }
+    input:focus-visible, button:focus-visible { outline: 2px solid #5b94de; outline-offset: 2px; }
+    .events { margin-top: 22px; }
+    .ev-hd { font-size: 13px; color: #aeb9c9; margin-bottom: 10px; }
+    .ev-add { display: flex; flex-wrap: wrap; gap: 8px; }
+    .ev-add button { padding: 8px 12px; font-size: 13px; font-weight: 600; background: #233044; color: #cdd8e8; border: 1px solid #2c3a52; border-radius: 8px; cursor: pointer; transition: background .15s; }
+    .ev-add button:hover { background: #2c3c54; }
+    .ev-add button.inc { background: #14301f; color: #8fe0b0; border-color: #1f5238; }
+    .ev-add button.inc:hover { background: #19402a; }
+    .ev-empty { font-size: 12.5px; color: #5e6b7d; margin-top: 10px; }
+    .ev-row { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 8px; background: #0f1620; border: 1px solid #2c3a52; border-radius: 9px; padding: 8px 10px; font-size: 13px; }
+    .ev-row.inc { border-color: #1f5238; }
+    .ev-row .nm { flex: 1 0 100%; font-weight: 600; margin-bottom: 2px; }
+    .ev-row.inc .nm { color: #8fe0b0; }
+    .ev-row input { width: 80px; padding: 6px 8px; font-size: 13px; background: #0f1620; border: 1px solid #2c3a52; border-radius: 7px; color: #fff; outline: none; }
+    .ev-row .lbl { color: #8b97a8; font-size: 12px; }
+    .ev-row .x { cursor: pointer; color: #e87a7a; font-weight: 800; padding: 0 4px; background: none; border: none; margin-left: auto; }
+    .goal { margin-top: 22px; padding: 16px 18px; background: #102a1d; border: 1px solid #1f6b46; border-radius: 12px; }
+    .goal .big { font-size: 22px; font-weight: 800; color: #4fd08a; }
+    .goal .big.miss { color: #e8a13a; }
+    .goal .small { font-size: 13px; color: #9fb4a6; margin-top: 2px; }
+    .chart { margin-top: 22px; }
+    .chart svg { width: 100%; height: auto; display: block; cursor: crosshair; }
+    .info { margin-top: 14px; padding: 14px 16px; background: #0f1620; border-radius: 11px; font-size: 13.5px; }
+    .info .hd { color: #8b97a8; font-size: 12px; margin-bottom: 8px; }
+    .info .r { display: flex; justify-content: space-between; padding: 4px 0; }
+    .info .r .v { font-weight: 700; font-variant-numeric: tabular-nums; }
+    .info .r .v.con { color: #e8a13a; }
+    .rev { margin-top: 14px; padding: 12px 14px; background: #0f1620; border-radius: 11px; font-size: 13.5px; display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+    .rev input { width: 70px; padding: 6px 8px; font-size: 13.5px; background: #1a2433; border: 1px solid #2c3a52; border-radius: 7px; color: #fff; outline: none; }
+    .rev .lbl { color: #8b97a8; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
+    .stat { background: #0f1620; border-radius: 11px; padding: 13px 15px; }
+    .stat .k { color: #8b97a8; font-size: 12px; }
+    .stat .v { font-size: 18px; font-weight: 800; margin-top: 3px; font-variant-numeric: tabular-nums; }
+    html, body { overflow-x: hidden; }
+    @media (max-width: 480px) {
+      body { display: block; padding: 16px 12px; }
+      .card { padding: 20px; }
+      .grid, .stats { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>財富試算</h1>
+    <div class="sub">起始資金 + 持續儲蓄 + 複利,幾歲能達成你的目標財富。</div>
+
+    <div class="topbar">
+      <div class="seg" id="seg">
+        <button type="button" data-m="year" class="on" onclick="setMode('year')">以「年」計</button>
+        <button type="button" data-m="month" onclick="setMode('month')">以「月」計</button>
+      </div>
+      <button type="button" class="reset" onclick="resetAll()">重設</button>
+    </div>
+
+    <div class="grid">
+      <div class="f"><label>起始資金(元)</label><input id="capital" type="number" value="300000" min="0" /><div class="hint" id="h_capital"></div></div>
+      <div class="f"><label>起始年齡(歲)</label><input id="age" type="number" value="30" min="0" /><div class="hint"></div></div>
+      <div class="f"><label id="l_return">每年期望報酬率(%)</label><input id="ret" type="number" value="6" step="0.1" /><div class="hint"></div></div>
+      <div class="f"><label>目標財富金額(元)</label><input id="target" type="number" value="10000000" min="0" /><div class="hint" id="h_target"></div></div>
+      <div class="f"><label id="l_salary">起始年薪(元)</label><input id="salary" type="number" value="700000" min="0" /><div class="hint" id="h_salary"></div></div>
+      <div class="f"><label id="l_savings">每年儲蓄(元)</label><input id="savings" type="number" value="300000" min="0" /><div class="hint" id="h_savings"></div></div>
+      <div class="f"><label id="l_salG">薪資年成長率(%)</label><input id="salG" type="number" value="3" step="0.1" /><div class="hint"></div></div>
+      <div class="f"><label id="l_savG">儲蓄年成長率(%)</label><input id="savG" type="number" value="3" step="0.1" /><div class="hint"></div></div>
+    </div>
+
+    <div class="events">
+      <div class="ev-hd">人生大事(那一年/那幾年扣或得一筆,曲線會動)</div>
+      <div class="ev-add">
+        <button type="button" onclick="addEvent('house')">＋買房頭期</button>
+        <button type="button" onclick="addEvent('marry')">＋結婚</button>
+        <button type="button" onclick="addEvent('car')">＋買車</button>
+        <button type="button" onclick="addEvent('child')">＋養小孩</button>
+        <button type="button" class="inc" onclick="addEvent('inherit')">＋遺產</button>
+        <button type="button" class="inc" onclick="addEvent('sellhouse')">＋賣房</button>
+      </div>
+      <div id="evlist"></div>
+    </div>
+
+    <div class="goal" id="goal"></div>
+    <div class="chart" id="chart"></div>
+    <div class="info" id="info"></div>
+    <div class="rev"><span class="lbl">反推:想在</span><input id="revAge" type="number" value="45" min="0" /><span class="lbl">歲達標 →</span><span id="revOut"></span></div>
+    <div class="f" style="margin-top:14px"><label>年通膨率(%) ・ 把未來金額換算回今天的購買力</label><input id="infl" type="number" value="2" step="0.1" /></div>
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <script>
+    let MODE = 'year', SERIES = [], TARGET = 0, SEL = -1, REACHED = -1;
+    const num = id => Math.max(0, parseFloat(document.getElementById(id).value) || 0);   // 防呆:不接受負數
+    const nt = n => "NT$ " + Math.round(n).toLocaleString("en-US");
+    function wan(n) { n = Math.abs(+n); if (n >= 1e8) return (n / 1e8).toFixed(n % 1e8 ? 1 : 0).replace(/\.0$/, '') + ' 億'; if (n >= 1e4) return Math.round(n / 1e4) + ' 萬'; return ''; }
+
+    // 人生大事(事件時間軸:一次性 / 每年,支出 cost / 收入 income)
+    let EVENTS = [], evId = 0;
+    const PRESET = {
+      house: { nm: '買房頭期', kind: 'cost', type: 'once', age: 35, amount: 2000000 },
+      marry: { nm: '結婚', kind: 'cost', type: 'once', age: 32, amount: 600000 },
+      car: { nm: '買車', kind: 'cost', type: 'once', age: 33, amount: 800000 },
+      child: { nm: '養小孩', kind: 'cost', type: 'yearly', age: 34, endAge: 56, amount: 250000 },
+      inherit: { nm: '遺產', kind: 'income', type: 'once', age: 60, amount: 3000000 },
+      sellhouse: { nm: '賣房', kind: 'income', type: 'once', age: 55, amount: 5000000 },
+    };
+    function addEvent(k) { EVENTS.push({ id: ++evId, ...PRESET[k] }); renderEvents(); recompute(); }
+    function removeEvent(id) { EVENTS = EVENTS.filter(e => e.id !== id); renderEvents(); recompute(); }
+    function evChange(id, f, v) { const e = EVENTS.find(x => x.id === id); if (e) { e[f] = parseFloat(v) || 0; recompute(); } }
+    function renderEvents() {
+      const list = document.getElementById('evlist');
+      if (!EVENTS.length) { list.innerHTML = '<div class="ev-empty">還沒加事件 ・ 點上面按鈕加入(灰=支出、綠=收入)</div>'; return; }
+      list.innerHTML = EVENTS.map(e => {
+        const inc = e.kind === 'income';
+        const end = e.type === 'yearly' ? `<span class="lbl">到</span><input type="number" value="${e.endAge}" onchange="evChange(${e.id},'endAge',this.value)"/><span class="lbl">歲</span>` : '';
+        return `<div class="ev-row ${inc ? 'inc' : ''}"><span class="nm">${e.nm}</span><span class="lbl">${e.type === 'yearly' ? '從' : '在'}</span><input type="number" value="${e.age}" onchange="evChange(${e.id},'age',this.value)"/><span class="lbl">歲</span>${end}<span class="lbl">${inc ? '得' : '花'}</span><input type="number" value="${e.amount}" onchange="evChange(${e.id},'amount',this.value)"/><span class="lbl">元${e.type === 'yearly' ? '/年' : ''}</span><button class="x" onclick="removeEvent(${e.id})">✕</button></div>`;
+      }).join('');
+    }
+
+    function setMode(m) {
+      MODE = m;
+      document.querySelectorAll('#seg button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+      const per = m === 'month' ? '月' : '年';
+      document.getElementById('l_return').textContent = `每${per}期望報酬率(%)`;
+      document.getElementById('l_salary').textContent = `起始${per}薪(元)`;
+      document.getElementById('l_savings').textContent = `每${per}儲蓄(元)`;
+      document.getElementById('l_salG').textContent = `薪資${per}成長率(%)`;
+      document.getElementById('l_savG').textContent = `儲蓄${per}成長率(%)`;
+      recompute();
+    }
+
+    function recompute() {
+      const ppy = MODE === 'month' ? 12 : 1;
+      const cap = num('capital'), age0 = num('age'), r = num('ret') / 100;
+      const sav0 = num('savings'), sal0 = num('salary'), salG = num('salG') / 100, savG = num('savG') / 100;
+      TARGET = num('target');
+      const maxP = ppy * 70;
+      const onceCost = {}, onceInc = {};
+      EVENTS.forEach(e => { if (e.type === 'once') { const pi = Math.max(0, Math.round((e.age - age0) * ppy)); const m = (e.kind === 'income' ? onceInc : onceCost); m[pi] = (m[pi] || 0) + e.amount; } });
+      SERIES = []; let bal = cap, contributed = cap, reached = -1, evCostCum = 0, evIncCum = 0;
+      for (let i = 0; i <= maxP; i++) {
+        const age = age0 + i / ppy;
+        const salary = sal0 * Math.pow(1 + salG, i);
+        let savings = sav0 * Math.pow(1 + savG, i);
+        if (savings > salary) savings = salary;           // 儲蓄不超過薪資
+        if (i > 0) { bal = bal * (1 + r) + savings; contributed += savings; }
+        let cost = onceCost[i] || 0, inc = onceInc[i] || 0;
+        EVENTS.forEach(e => { if (e.type === 'yearly' && age >= e.age && age <= e.endAge) { if (e.kind === 'income') inc += e.amount / ppy; else cost += e.amount / ppy; } });
+        bal += inc - cost; if (bal < 0) bal = 0; evCostCum += cost; evIncCum += inc;
+        SERIES.push({ i, age, bal, salary, savings, cons: salary - savings, contributed, cost, inc, evCostCum, evIncCum });
+        if (reached < 0 && TARGET > 0 && bal >= TARGET) { reached = i; break; }
+      }
+      renderGoal(reached, ppy, age0);
+      REACHED = reached;
+      SEL = reached >= 0 ? reached : SERIES.length - 1;
+      render();
+      updateHints();
+      reverseUpdate();
+      saveState();
+    }
+
+    function renderGoal(reached, ppy, age0) {
+      const g = document.getElementById('goal');
+      if (reached >= 0) {
+        const yrs = reached / ppy, rf = 1 / Math.pow(1 + num('infl') / 100, yrs), wd = TARGET * 0.04;
+        g.innerHTML = `<div class="big">預計 ${yrs % 1 === 0 ? yrs : yrs.toFixed(1)} 年達成目標</div>
+          <div class="small">在 ${(age0 + yrs).toFixed(1)} 歲達到 ${nt(TARGET)}(今值約 ${nt(TARGET * rf)})</div>
+          <div class="small" style="margin-top:5px;color:#7fb0e8">達標後以 4% 法則,每年可花 ${nt(wd)}(今值 ${nt(wd * rf)})</div>`;
+      } else {
+        g.innerHTML = `<div class="big miss">70 年內未達成目標</div>
+          <div class="small">試著提高儲蓄、報酬率,或下修目標</div>`;
+      }
+    }
+
+    function render() {
+      const W = 520, H = 180, pad = 8, base = H - 22;
+      const n = SERIES.length - 1;
+      const maxV = Math.max(TARGET, SERIES[n].bal) || 1;
+      const ppy = MODE === 'month' ? 12 : 1;
+      const x = i => pad + (i / Math.max(n, 1)) * (W - pad * 2);
+      const y = v => base - (v / maxV) * (base - 10);
+      let grid = '';
+      [0.25, 0.5, 0.75, 1].forEach(f => { const gy = y(maxV * f).toFixed(1); grid += `<line x1="${pad}" y1="${gy}" x2="${W - pad}" y2="${gy}" stroke="#1d2a3c" stroke-width="1"/>`; });
+      let line = "", area = `M ${x(0)} ${base}`;
+      SERIES.forEach((p, i) => { const px = x(i).toFixed(1), py = y(p.bal).toFixed(1); line += (i ? "L" : "M") + ` ${px} ${py} `; area += ` L ${px} ${py}`; });
+      area += ` L ${x(n)} ${base} Z`;
+      let evMarks = '';
+      EVENTS.forEach(e => { if (e.type === 'once') { const pi = Math.round((e.age - SERIES[0].age) * ppy); if (pi >= 0 && pi <= n) evMarks += `<circle cx="${x(pi).toFixed(1)}" cy="${y(SERIES[pi].bal).toFixed(1)}" r="3" fill="${e.kind === 'income' ? '#4fd08a' : '#e87a7a'}" stroke="#0f1620" stroke-width="1.5"/>`; } });
+      let ach = '';
+      if (REACHED >= 0) { const ax = x(REACHED).toFixed(1), ay = y(SERIES[REACHED].bal).toFixed(1); ach = `<circle cx="${ax}" cy="${ay}" r="5" fill="#4fd08a" stroke="#0f1620" stroke-width="2"/><text x="${+ax - 8}" y="${+ay - 9}" fill="#4fd08a" font-size="11" text-anchor="end" font-family="sans-serif" font-weight="700">${SERIES[REACHED].age.toFixed(0)} 歲達標</text>`; }
+      const ty = y(TARGET).toFixed(1);
+      const sx = x(SEL).toFixed(1), sp = SERIES[SEL];
+      document.getElementById('chart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" onclick="pick(event)" onmousemove="pick(event)">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4fd08a" stop-opacity=".3"/><stop offset="1" stop-color="#4fd08a" stop-opacity="0"/></linearGradient></defs>
+        ${grid}
+        <line x1="${pad}" y1="${ty}" x2="${W - pad}" y2="${ty}" stroke="#e8a13a" stroke-width="1.3" stroke-dasharray="5 4"/>
+        <text x="${W - pad}" y="${+ty - 5}" fill="#e8a13a" font-size="10.5" text-anchor="end" font-family="sans-serif">目標 ${nt(TARGET)}</text>
+        <path d="${area}" fill="url(#g)"/>
+        <path d="${line}" fill="none" stroke="#4fd08a" stroke-width="2.5" stroke-linejoin="round"/>
+        ${evMarks}${ach}
+        <line x1="${sx}" y1="6" x2="${sx}" y2="${base}" stroke="#2f7ad6" stroke-width="1.2"/>
+        <circle cx="${sx}" cy="${y(sp.bal).toFixed(1)}" r="4.5" fill="#2f7ad6" stroke="#fff" stroke-width="1.5"/>
+        <text x="${pad}" y="${H - 5}" fill="#5e6b7d" font-size="10.5" font-family="sans-serif">${SERIES[0].age.toFixed(0)} 歲</text>
+        <text x="${W - pad}" y="${H - 5}" fill="#5e6b7d" font-size="10.5" text-anchor="end" font-family="sans-serif">${SERIES[n].age.toFixed(0)} 歲</text>
+      </svg>`;
+      renderInfo();
+    }
+
+    function pick(evt) {
+      const svg = evt.currentTarget, rc = svg.getBoundingClientRect();
+      const ratio = (evt.clientX - rc.left) / rc.width;
+      SEL = Math.max(0, Math.min(SERIES.length - 1, Math.round(ratio * (SERIES.length - 1))));
+      render();
+    }
+
+    function renderInfo() {
+      const p = SERIES[SEL], per = MODE === 'month' ? '月' : '年';
+      const infl = num('infl') / 100, yrs = p.age - SERIES[0].age, rf = 1 / Math.pow(1 + infl, yrs);
+      document.getElementById('info').innerHTML = `<div class="hd">點/滑過圖表看該期 ・ 目前:${p.age.toFixed(1)} 歲(第 ${p.i} ${per})</div>
+        <div class="r"><span>投資餘額</span><span class="v">${nt(p.bal)}</span></div>
+        <div class="r"><span>投資餘額(今值)</span><span class="v" style="color:#7fb0e8">${nt(p.bal * rf)}</span></div>
+        <div class="r"><span>當期${per}薪</span><span class="v">${nt(p.salary)}</span></div>
+        <div class="r"><span>當期儲蓄</span><span class="v">${nt(p.savings)}</span></div>
+        <div class="r"><span>當期消費(薪資−儲蓄)</span><span class="v con">${nt(p.cons)}</span></div>`
+        + (p.cost > 0 ? `<div class="r"><span>本期人生大事支出</span><span class="v" style="color:#e87a7a">−${nt(p.cost)}</span></div>` : '')
+        + (p.inc > 0 ? `<div class="r"><span>本期人生大事收入</span><span class="v" style="color:#4fd08a">＋${nt(p.inc)}</span></div>` : '');
+      const last = SERIES[SERIES.length - 1], ec = last.evCostCum || 0, ei = last.evIncCum || 0;
+      document.getElementById('stats').innerHTML = `
+        <div class="stat"><div class="k">累積本金投入</div><div class="v">${nt(last.contributed)}</div></div>
+        <div class="stat"><div class="k">投資獲利(純報酬)</div><div class="v" style="color:#4fd08a">${nt(last.bal - last.contributed + ec - ei)}</div></div>`
+        + (ec > 0 ? `<div class="stat"><div class="k">人生大事支出</div><div class="v" style="color:#e87a7a">−${nt(ec)}</div></div>` : '')
+        + (ei > 0 ? `<div class="stat"><div class="k">人生大事收入</div><div class="v" style="color:#4fd08a">＋${nt(ei)}</div></div>` : '');
+    }
+
+    // 反推:想在某年齡達標,每期要存多少(二分搜尋)
+    function balanceAtAge(sav0, atAge) {
+      const ppy = MODE === 'month' ? 12 : 1;
+      const cap = num('capital'), age0 = num('age'), r = num('ret') / 100;
+      const sal0 = num('salary'), salG = num('salG') / 100, savG = num('savG') / 100;
+      const nP = Math.max(0, Math.round((atAge - age0) * ppy));
+      const onceCost = {}, onceInc = {};
+      EVENTS.forEach(e => { if (e.type === 'once') { const pi = Math.max(0, Math.round((e.age - age0) * ppy)); const m = (e.kind === 'income' ? onceInc : onceCost); m[pi] = (m[pi] || 0) + e.amount; } });
+      let bal = cap;
+      for (let i = 0; i <= nP; i++) {
+        const age = age0 + i / ppy;
+        const salary = sal0 * Math.pow(1 + salG, i);
+        let savings = sav0 * Math.pow(1 + savG, i); if (savings > salary) savings = salary;
+        if (i > 0) bal = bal * (1 + r) + savings;
+        let cost = onceCost[i] || 0, inc = onceInc[i] || 0;
+        EVENTS.forEach(e => { if (e.type === 'yearly' && age >= e.age && age <= e.endAge) { if (e.kind === 'income') inc += e.amount / ppy; else cost += e.amount / ppy; } });
+        bal += inc - cost; if (bal < 0) bal = 0;
+      }
+      return bal;
+    }
+    function reverseUpdate() {
+      const el = document.getElementById('revOut'); if (!el) return;
+      const ta = num('revAge'), per = MODE === 'month' ? '月' : '年';
+      if (ta <= num('age') || TARGET <= 0) { el.innerHTML = '<span class="lbl">(達標年齡要大於現在年齡)</span>'; return; }
+      let lo = 0, hi = 5e7;
+      if (balanceAtAge(hi, ta) < TARGET) { el.innerHTML = '<span class="lbl">(這年齡內存再多也達不到)</span>'; return; }
+      for (let k = 0; k < 44; k++) { const mid = (lo + hi) / 2; if (balanceAtAge(mid, ta) >= TARGET) hi = mid; else lo = mid; }
+      el.innerHTML = `每${per}需存 <b style="color:#4fd08a">${nt(hi)}</b> <span class="lbl">(目前 ${nt(num('savings'))})</span>`;
+    }
+
+    function updateHints() {
+      [['capital', 'h_capital'], ['target', 'h_target'], ['salary', 'h_salary'], ['savings', 'h_savings']].forEach(([i, h]) => {
+        const el = document.getElementById(h); if (el) { const w = wan(num(i)); el.textContent = w ? ('= ' + w) : ''; }
+      });
+    }
+
+    const INPUTS = ['capital', 'age', 'ret', 'target', 'salary', 'savings', 'salG', 'savG', 'infl', 'revAge'];
+    function saveState() { const s = { mode: MODE, events: EVENTS }; INPUTS.forEach(id => s[id] = document.getElementById(id).value); try { localStorage.setItem('fire-calc', JSON.stringify(s)); } catch (e) {} }
+    function loadState() {
+      try {
+        const s = JSON.parse(localStorage.getItem('fire-calc')); if (!s) return;
+        INPUTS.forEach(id => { if (s[id] != null) document.getElementById(id).value = s[id]; });
+        if (s.mode) MODE = s.mode;
+        if (Array.isArray(s.events)) { EVENTS = s.events; EVENTS.forEach(e => { if (e.id > evId) evId = e.id; }); }
+      } catch (e) {}
+    }
+    function resetAll() { try { localStorage.removeItem('fire-calc'); } catch (e) {} location.reload(); }
+
+    loadState();
+    renderEvents();
+    setMode(MODE);
+    document.querySelectorAll('input').forEach(el => el.addEventListener('input', recompute));
+  </script>
+</body>
+</html>
