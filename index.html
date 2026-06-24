@@ -105,14 +105,15 @@
     <div class="goal" id="goal"></div>
     <div class="chart" id="chart"></div>
     <div class="info" id="info"></div>
-    <div class="rev"><span class="lbl">反推:想在</span><input id="revAge" type="number" value="45" min="0" /><span class="lbl">歲達標 →</span><span id="revOut"></span></div>
+    <div class="rev"><span class="lbl">反推:想在</span><input id="revAge" type="number" value="45" min="0" max="120" /><span class="lbl">歲達標 →</span><span id="revOut"></span></div>
     <div class="f" style="margin-top:14px"><label>年通膨率(%) ・ 把未來金額換算回今天的購買力</label><input id="infl" type="number" value="2" step="0.1" /></div>
     <div class="stats" id="stats"></div>
   </div>
 
   <script>
     let MODE = 'year', SERIES = [], TARGET = 0, SEL = -1, REACHED = -1;
-    const num = id => Math.max(0, parseFloat(document.getElementById(id).value) || 0);   // 防呆:不接受負數
+    const num = id => Math.max(0, parseFloat(document.getElementById(id).value) || 0);   // 防呆:不接受負數(數量類)
+    const sig = id => parseFloat(document.getElementById(id).value) || 0;                  // 可正可負(利率/成長率/通膨)
     const nt = n => "NT$ " + Math.round(n).toLocaleString("en-US");
     function wan(n) { n = Math.abs(+n); if (n >= 1e8) return (n / 1e8).toFixed(n % 1e8 ? 1 : 0).replace(/\.0$/, '') + ' 億'; if (n >= 1e4) return Math.round(n / 1e4) + ' 萬'; return ''; }
 
@@ -128,7 +129,7 @@
     };
     function addEvent(k) { EVENTS.push({ id: ++evId, ...PRESET[k] }); renderEvents(); recompute(); }
     function removeEvent(id) { EVENTS = EVENTS.filter(e => e.id !== id); renderEvents(); recompute(); }
-    function evChange(id, f, v) { const e = EVENTS.find(x => x.id === id); if (e) { e[f] = parseFloat(v) || 0; recompute(); } }
+    function evChange(id, f, v) { const e = EVENTS.find(x => x.id === id); if (e) { e[f] = (f === 'amount') ? Math.max(0, parseFloat(v) || 0) : (parseFloat(v) || 0); recompute(); } }
     function renderEvents() {
       const list = document.getElementById('evlist');
       if (!EVENTS.length) { list.innerHTML = '<div class="ev-empty">還沒加事件 ・ 點上面按鈕加入(灰=支出、綠=收入)</div>'; return; }
@@ -140,8 +141,22 @@
     }
 
     function setMode(m) {
+      const prev = MODE;
       MODE = m;
       document.querySelectorAll('#seg button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+      if (prev !== m) {
+        // 真正切換才換算數值,讓曲線意義不變(利率用幾何換算,金額除/乘 12);通膨永遠是年率不換算
+        const setv = (id, v, dp) => { document.getElementById(id).value = +(+v).toFixed(dp); };
+        const toM = (prev === 'year' && m === 'month');
+        ['ret', 'salG', 'savG'].forEach(id => {
+          const a = parseFloat(document.getElementById(id).value) || 0;
+          setv(id, toM ? (Math.pow(1 + a / 100, 1 / 12) - 1) * 100 : (Math.pow(1 + a / 100, 12) - 1) * 100, 4);
+        });
+        ['salary', 'savings'].forEach(id => {
+          const a = parseFloat(document.getElementById(id).value) || 0;
+          setv(id, toM ? a / 12 : a * 12, 2);
+        });
+      }
       const per = m === 'month' ? '月' : '年';
       document.getElementById('l_return').textContent = `每${per}期望報酬率(%)`;
       document.getElementById('l_salary').textContent = `起始${per}薪(元)`;
@@ -153,12 +168,12 @@
 
     function recompute() {
       const ppy = MODE === 'month' ? 12 : 1;
-      const cap = num('capital'), age0 = num('age'), r = num('ret') / 100;
-      const sav0 = num('savings'), sal0 = num('salary'), salG = num('salG') / 100, savG = num('savG') / 100;
+      const cap = num('capital'), age0 = num('age'), r = sig('ret') / 100;
+      const sav0 = num('savings'), sal0 = num('salary'), salG = sig('salG') / 100, savG = sig('savG') / 100;
       TARGET = num('target');
       const maxP = ppy * 70;
       const onceCost = {}, onceInc = {};
-      EVENTS.forEach(e => { if (e.type === 'once') { const pi = Math.max(0, Math.round((e.age - age0) * ppy)); const m = (e.kind === 'income' ? onceInc : onceCost); m[pi] = (m[pi] || 0) + e.amount; } });
+      EVENTS.forEach(e => { if (e.type === 'once') { const pi = Math.round((e.age - age0) * ppy); if (pi < 0 || pi > maxP) return; const m = (e.kind === 'income' ? onceInc : onceCost); m[pi] = (m[pi] || 0) + e.amount; } });
       SERIES = []; let bal = cap, contributed = cap, reached = -1, evCostCum = 0, evIncCum = 0;
       for (let i = 0; i <= maxP; i++) {
         const age = age0 + i / ppy;
@@ -167,7 +182,7 @@
         if (savings > salary) savings = salary;           // 儲蓄不超過薪資
         if (i > 0) { bal = bal * (1 + r) + savings; contributed += savings; }
         let cost = onceCost[i] || 0, inc = onceInc[i] || 0;
-        EVENTS.forEach(e => { if (e.type === 'yearly' && age >= e.age && age <= e.endAge) { if (e.kind === 'income') inc += e.amount / ppy; else cost += e.amount / ppy; } });
+        EVENTS.forEach(e => { if (e.type === 'yearly' && age >= e.age && age < e.endAge) { if (e.kind === 'income') inc += e.amount / ppy; else cost += e.amount / ppy; } });
         bal += inc - cost; if (bal < 0) bal = 0; evCostCum += cost; evIncCum += inc;
         SERIES.push({ i, age, bal, salary, savings, cons: salary - savings, contributed, cost, inc, evCostCum, evIncCum });
         if (reached < 0 && TARGET > 0 && bal >= TARGET) { reached = i; break; }
@@ -184,10 +199,13 @@
     function renderGoal(reached, ppy, age0) {
       const g = document.getElementById('goal');
       if (reached >= 0) {
-        const yrs = reached / ppy, rf = 1 / Math.pow(1 + num('infl') / 100, yrs), wd = TARGET * 0.04;
+        const yrs = reached / ppy, rf = 1 / Math.pow(1 + Math.max(-99, sig('infl')) / 100, yrs), wd = SERIES[reached].bal * 0.04;
         g.innerHTML = `<div class="big">預計 ${yrs % 1 === 0 ? yrs : yrs.toFixed(1)} 年達成目標</div>
           <div class="small">在 ${(age0 + yrs).toFixed(1)} 歲達到 ${nt(TARGET)}(今值約 ${nt(TARGET * rf)})</div>
           <div class="small" style="margin-top:5px;color:#7fb0e8">達標後以 4% 法則,每年可花 ${nt(wd)}(今值 ${nt(wd * rf)})</div>`;
+      } else if (TARGET <= 0) {
+        g.innerHTML = `<div class="big" style="color:#8b97a8">還沒設定目標</div>
+          <div class="small">在上面「目標財富金額」填一個數字,就會算出幾年達成。</div>`;
       } else {
         g.innerHTML = `<div class="big miss">70 年內未達成目標</div>
           <div class="small">試著提高儲蓄、報酬率,或下修目標</div>`;
@@ -212,7 +230,7 @@
       if (REACHED >= 0) { const ax = x(REACHED).toFixed(1), ay = y(SERIES[REACHED].bal).toFixed(1); ach = `<circle cx="${ax}" cy="${ay}" r="5" fill="#4fd08a" stroke="#0f1620" stroke-width="2"/><text x="${+ax - 8}" y="${+ay - 9}" fill="#4fd08a" font-size="11" text-anchor="end" font-family="sans-serif" font-weight="700">${SERIES[REACHED].age.toFixed(0)} 歲達標</text>`; }
       const ty = y(TARGET).toFixed(1);
       const sx = x(SEL).toFixed(1), sp = SERIES[SEL];
-      document.getElementById('chart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" onclick="pick(event)" onmousemove="pick(event)">
+      document.getElementById('chart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="touch-action:none" onclick="pick(event)" onpointermove="pick(event)">
         <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4fd08a" stop-opacity=".3"/><stop offset="1" stop-color="#4fd08a" stop-opacity="0"/></linearGradient></defs>
         ${grid}
         <line x1="${pad}" y1="${ty}" x2="${W - pad}" y2="${ty}" stroke="#e8a13a" stroke-width="1.3" stroke-dasharray="5 4"/>
@@ -237,7 +255,7 @@
 
     function renderInfo() {
       const p = SERIES[SEL], per = MODE === 'month' ? '月' : '年';
-      const infl = num('infl') / 100, yrs = p.age - SERIES[0].age, rf = 1 / Math.pow(1 + infl, yrs);
+      const infl = Math.max(-99, sig('infl')) / 100, yrs = p.age - SERIES[0].age, rf = 1 / Math.pow(1 + infl, yrs);
       document.getElementById('info').innerHTML = `<div class="hd">點/滑過圖表看該期 ・ 目前:${p.age.toFixed(1)} 歲(第 ${p.i} ${per})</div>
         <div class="r"><span>投資餘額</span><span class="v">${nt(p.bal)}</span></div>
         <div class="r"><span>投資餘額(今值)</span><span class="v" style="color:#7fb0e8">${nt(p.bal * rf)}</span></div>
@@ -257,11 +275,11 @@
     // 反推:想在某年齡達標,每期要存多少(二分搜尋)
     function balanceAtAge(sav0, atAge) {
       const ppy = MODE === 'month' ? 12 : 1;
-      const cap = num('capital'), age0 = num('age'), r = num('ret') / 100;
-      const sal0 = num('salary'), salG = num('salG') / 100, savG = num('savG') / 100;
-      const nP = Math.max(0, Math.round((atAge - age0) * ppy));
+      const cap = num('capital'), age0 = num('age'), r = sig('ret') / 100;
+      const sal0 = num('salary'), salG = sig('salG') / 100, savG = sig('savG') / 100;
+      const nP = Math.min(ppy * 70, Math.max(0, Math.round((atAge - age0) * ppy)));
       const onceCost = {}, onceInc = {};
-      EVENTS.forEach(e => { if (e.type === 'once') { const pi = Math.max(0, Math.round((e.age - age0) * ppy)); const m = (e.kind === 'income' ? onceInc : onceCost); m[pi] = (m[pi] || 0) + e.amount; } });
+      EVENTS.forEach(e => { if (e.type === 'once') { const pi = Math.round((e.age - age0) * ppy); if (pi < 0 || pi > nP) return; const m = (e.kind === 'income' ? onceInc : onceCost); m[pi] = (m[pi] || 0) + e.amount; } });
       let bal = cap;
       for (let i = 0; i <= nP; i++) {
         const age = age0 + i / ppy;
@@ -269,7 +287,7 @@
         let savings = sav0 * Math.pow(1 + savG, i); if (savings > salary) savings = salary;
         if (i > 0) bal = bal * (1 + r) + savings;
         let cost = onceCost[i] || 0, inc = onceInc[i] || 0;
-        EVENTS.forEach(e => { if (e.type === 'yearly' && age >= e.age && age <= e.endAge) { if (e.kind === 'income') inc += e.amount / ppy; else cost += e.amount / ppy; } });
+        EVENTS.forEach(e => { if (e.type === 'yearly' && age >= e.age && age < e.endAge) { if (e.kind === 'income') inc += e.amount / ppy; else cost += e.amount / ppy; } });
         bal += inc - cost; if (bal < 0) bal = 0;
       }
       return bal;
@@ -278,10 +296,12 @@
       const el = document.getElementById('revOut'); if (!el) return;
       const ta = num('revAge'), per = MODE === 'month' ? '月' : '年';
       if (ta <= num('age') || TARGET <= 0) { el.innerHTML = '<span class="lbl">(達標年齡要大於現在年齡)</span>'; return; }
+      if (ta > num('age') + 100) { el.innerHTML = '<span class="lbl">(年齡上限 120 歲)</span>'; return; }
       let lo = 0, hi = 5e7;
       if (balanceAtAge(hi, ta) < TARGET) { el.innerHTML = '<span class="lbl">(這年齡內存再多也達不到)</span>'; return; }
       for (let k = 0; k < 44; k++) { const mid = (lo + hi) / 2; if (balanceAtAge(mid, ta) >= TARGET) hi = mid; else lo = mid; }
-      el.innerHTML = `每${per}需存 <b style="color:#4fd08a">${nt(hi)}</b> <span class="lbl">(目前 ${nt(num('savings'))})</span>`;
+      const note = sig('savG') !== 0 ? ' <span class="lbl">(首期金額,之後逐期×儲蓄成長率)</span>' : '';
+      el.innerHTML = `每${per}需存 <b style="color:#4fd08a">${nt(hi)}</b> <span class="lbl">(目前 ${nt(num('savings'))})</span>${note}`;
     }
 
     function updateHints() {
@@ -297,7 +317,7 @@
         const s = JSON.parse(localStorage.getItem('fire-calc')); if (!s) return;
         INPUTS.forEach(id => { if (s[id] != null) document.getElementById(id).value = s[id]; });
         if (s.mode) MODE = s.mode;
-        if (Array.isArray(s.events)) { EVENTS = s.events; EVENTS.forEach(e => { if (e.id > evId) evId = e.id; }); }
+        if (Array.isArray(s.events)) { EVENTS = s.events.filter(e => e && typeof e.amount === 'number' && isFinite(e.amount) && typeof e.age === 'number' && isFinite(e.age)); EVENTS.forEach(e => { if (e.id > evId) evId = e.id; }); }
       } catch (e) {}
     }
     function resetAll() { try { localStorage.removeItem('fire-calc'); } catch (e) {} location.reload(); }
